@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<!--
+  Protein Purification LAB (interleaved) — separate, characterise, identify
+  Built on the /accessible-simulations house style ("Plain Service", light only).
+  Single self-contained file. GitHub-Pages ready, iframe-embeddable.
+  No build step, no storage APIs, no auto-animation.
+-->
+<html lang="en-AU">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Protein purification lab simulation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ---------- House style tokens (from the skill; do not edit) ---------- */
+  :root{
+    --bg:#ffffff; --surface:#ffffff; --surface-2:#f3f4f6; --border:#9aa1ab;
+    --ink:#16191f; --ink-muted:#4b515a; --accent:#1d4ed8; --accent-ink:#ffffff;
+    --focus:#1d4ed8; --radius:4px;
+    --font:'Public Sans',system-ui,-apple-system,sans-serif;
+    --series1:#1d4ed8; --series2:#a8420a; --series3:#6b7280;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--bg);color:var(--ink);font-family:var(--font);
+       font-size:17px;line-height:1.6;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1040px;margin:0 auto;padding:24px 20px 56px;}
+
+  .sim{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px;}
+  .sim-head h1{font-size:1.6rem;line-height:1.2;margin:0 0 6px;font-weight:700;}
+  .sim-head p{margin:0 0 20px;color:var(--ink-muted);max-width:70ch;}
+
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:28px;}
+  @media (max-width:760px){.grid{grid-template-columns:1fr;}}
+
+  .panel{background:var(--surface-2);border:1px solid var(--border);
+         border-radius:var(--radius);padding:18px;margin-bottom:24px;}
+  .panel:last-child{margin-bottom:0;}
+  .panel h2{font-size:1rem;margin:0 0 14px;font-weight:700;}
+  .panel[hidden]{display:none;}
+
+  .control{margin-bottom:22px;}
+  .control:last-child{margin-bottom:0;}
+
+  /* segmented radio primitive (from the skill) */
+  fieldset{border:0;margin:0;padding:0;}
+  legend{font-weight:600;margin-bottom:8px;font-size:.95rem;padding:0;}
+  .radios{display:flex;flex-direction:column;gap:8px;}
+  .radio{display:flex;align-items:flex-start;gap:10px;border:2px solid var(--border);
+    background:var(--surface);border-radius:var(--radius);padding:10px 12px;
+    cursor:pointer;min-height:44px;}
+  .radio:hover{border-color:var(--accent);}
+  .radio input{width:20px;height:20px;accent-color:var(--accent);flex:none;margin-top:2px;}
+  .radio.checked{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--surface));}
+  .radio .rlabel{font-size:.95rem;}
+  .radio .rsub{display:block;color:var(--ink-muted);font-size:.82rem;font-weight:400;}
+
+  /* buttons (from the skill) */
+  .btnrow{display:flex;gap:10px;flex-wrap:wrap;}
+  .btn{appearance:none;font:inherit;font-weight:600;min-height:44px;padding:0 18px;
+    border-radius:var(--radius);cursor:pointer;border:2px solid var(--accent);}
+  .btn-primary{background:var(--accent);color:var(--accent-ink);}
+  .btn-ghost{background:transparent;color:var(--ink);border-color:var(--border);}
+  .btn:hover{filter:brightness(.96);}
+  .btn:disabled{opacity:.5;cursor:not-allowed;filter:none;}
+
+  /* visible focus everywhere — WCAG 2.4.7 / 2.4.11 */
+  button:focus-visible,input:focus-visible,select:focus-visible,
+  summary:focus-visible,.radio:focus-within{
+    outline:3px solid var(--focus);outline-offset:2px;}
+
+  .readout-box{padding:14px 16px;border-radius:var(--radius);
+    background:color-mix(in srgb,var(--accent) 10%,var(--surface));
+    border:1px solid color-mix(in srgb,var(--accent) 35%,var(--border));font-size:.95rem;}
+
+  .text-alt{margin-top:14px;font-size:.9rem;color:var(--ink-muted);}
+  .text-alt table{border-collapse:collapse;margin-top:6px;font-variant-numeric:tabular-nums;width:100%;}
+  .text-alt th,.text-alt td{border:1px solid var(--border);padding:5px 9px;text-align:left;}
+  .note{margin-top:10px;font-size:.82rem;color:var(--ink-muted);}
+  .vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
+
+  /* ---------- domain additions (tokens only, no new colours) ---------- */
+
+  /* progress steps — text-labelled, not colour-only */
+  .steps{display:flex;gap:12px;list-style:none;padding:0;margin:0 0 22px;flex-wrap:wrap;}
+  .step{display:flex;align-items:center;gap:10px;padding:8px 14px;border:2px solid var(--border);
+    border-radius:var(--radius);background:var(--surface);font-weight:600;font-size:.95rem;color:var(--ink-muted);}
+  .step .num{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;
+    border-radius:50%;border:2px solid var(--border);font-variant-numeric:tabular-nums;font-size:.9rem;flex:none;}
+  .step[aria-current="step"]{border-color:var(--accent);color:var(--ink);}
+  .step[aria-current="step"] .num{border-color:var(--accent);background:var(--accent);color:var(--accent-ink);}
+  .step.done{color:var(--ink);}
+  .step.done .num{border-color:var(--accent);background:var(--accent);color:var(--accent-ink);}
+  .step .state{font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.03em;}
+
+  /* reference + help disclosure */
+  details{border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;margin-bottom:16px;background:var(--surface);}
+  details+details{margin-top:-6px;}
+  summary{cursor:pointer;font-weight:600;}
+  .reftable{border-collapse:collapse;margin-top:12px;font-variant-numeric:tabular-nums;font-size:.9rem;width:100%;}
+  .reftable caption{caption-side:top;text-align:left;color:var(--ink-muted);font-size:.85rem;margin-bottom:8px;}
+  .reftable th,.reftable td{border:1px solid var(--border);padding:6px 9px;text-align:center;}
+  .reftable th[scope=row]{text-align:left;}
+  .helpbody p{margin:10px 0 0;font-size:.92rem;}
+  .helpbody ul{margin:8px 0 0;padding-left:20px;font-size:.92rem;}
+
+  /* protein chip — identity carried by the LETTER, never colour alone */
+  .chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;}
+  .prot{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:30px;
+    padding:0 8px;border:2px solid var(--border);border-radius:var(--radius);background:var(--surface);
+    font-weight:700;font-variant-numeric:tabular-nums;font-size:.95rem;}
+
+  /* purification tree */
+  .tree{margin:0;padding:0;list-style:none;}
+  .tree ul{margin:12px 0 0;padding:0 0 0 18px;border-left:3px solid var(--border);list-style:none;}
+  .node{border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);
+    padding:11px 13px;margin-bottom:10px;}
+  .node.processed{background:var(--surface-2);}
+  .node.pure{border-color:var(--accent);}
+  .fname{font-weight:700;}
+  .step-desc{color:var(--ink-muted);font-size:.86rem;margin:9px 0 0;}
+  .badge{display:inline-block;font-size:.74rem;font-weight:700;padding:2px 9px;border-radius:999px;
+    border:1px solid var(--border);margin-left:8px;vertical-align:middle;}
+  .badge.pure{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,var(--surface));color:var(--accent);}
+  .badge.mixed{color:var(--ink-muted);}
+
+  /* feedback block — prefixed with a text marker, never colour alone */
+  .fb{border-radius:var(--radius);padding:12px 14px;border:1px solid var(--border);
+    background:var(--surface-2);font-size:.95rem;}
+  .fb.good{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,var(--surface));}
+  .fb.warn{border-color:var(--series2);background:color-mix(in srgb,var(--series2) 8%,var(--surface));}
+  .fb .mark{font-weight:700;}
+
+  /* identify cards */
+  .idcard{border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:14px;background:var(--surface);}
+  .idcard.solved{border-color:var(--accent);}
+  .idcard h3{margin:0 0 4px;font-size:1rem;}
+  .hist{font-size:.85rem;color:var(--ink-muted);margin:4px 0 10px;padding-left:18px;}
+  .hist li{margin:2px 0;}
+  .charbtns{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0;}
+  .charbtn{appearance:none;font:inherit;font-weight:600;min-height:40px;padding:0 12px;font-size:.9rem;
+    border-radius:var(--radius);border:2px solid var(--border);background:var(--surface);color:var(--ink);cursor:pointer;}
+  .charbtn:hover{border-color:var(--accent);}
+  .charout{font-size:.9rem;margin:6px 0 0;padding:9px 11px;background:var(--surface-2);
+    border:1px solid var(--border);border-radius:var(--radius);}
+  .assignrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px;}
+  .assignrow label{font-weight:600;font-size:.92rem;}
+  select{font:inherit;min-height:44px;border:2px solid var(--border);border-radius:var(--radius);
+    padding:0 10px;background:var(--surface);color:var(--ink);}
+
+  /* ---- interleaved-lab additions: status, gels, swatches ---- */
+  .status{font-size:.92rem;color:var(--ink);margin:0 0 18px;padding:11px 14px;border:1px solid var(--border);
+    border-radius:var(--radius);background:var(--surface);}
+  .results{margin-top:10px;}
+  .resultblock{border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;margin:8px 0;background:var(--surface);}
+  .resultblock h4{margin:0 0 4px;font-size:.88rem;}
+  .charnote{font-size:.86rem;color:var(--ink);margin:4px 0 0;}
+  .gel{position:relative;height:150px;border:1px solid var(--border);border-radius:var(--radius);
+    background:var(--surface-2);margin:8px 0 4px;overflow:hidden;}
+  .gel .cap{position:absolute;top:3px;left:6px;font-size:.66rem;color:var(--ink-muted);}
+  .gel .tick{position:absolute;left:4px;font-size:.66rem;color:var(--ink-muted);transform:translateY(-50%);}
+  .gel .lane{position:absolute;top:0;bottom:0;left:46px;right:70px;background:var(--surface);
+    border-left:1px solid var(--border);border-right:1px solid var(--border);}
+  .gel .band{position:absolute;left:5px;right:5px;height:6px;background:var(--ink);border-radius:2px;transform:translateY(-50%);}
+  .gel .blabel{position:absolute;right:6px;font-size:.7rem;color:var(--ink-muted);transform:translateY(-50%);
+    background:var(--surface-2);padding:0 3px;}
+  .gel .well{position:absolute;left:46px;right:70px;border-top:2px dashed var(--border);}
+  .gel .pole{position:absolute;right:6px;font-size:.66rem;color:var(--ink-muted);}
+  .swatchrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:6px 0 0;}
+  .swatch{display:inline-block;width:24px;height:24px;border:1px solid var(--border);border-radius:4px;flex:none;}
+  .swatch.clear{background:repeating-linear-gradient(45deg,#fff,#fff 4px,#e5e7eb 4px,#e5e7eb 8px);}
+  .subfooter{margin-top:6px;}
+  .gel .origin{position:absolute;left:0;right:0;top:50%;border-top:2px solid var(--ink-muted);}
+  .gel .wellslot{position:absolute;top:50%;width:16px;height:7px;background:var(--ink-muted);border-radius:1px;transform:translateY(-50%);}
+  .gel .originlab{position:absolute;left:4px;top:50%;font-size:.62rem;color:var(--ink-muted);transform:translateY(-50%);background:var(--surface-2);padding:0 2px;z-index:2;}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="sim">
+    <div class="sim-head">
+      <h1>Protein purification lab simulation</h1>
+      <p>You have a mixture of three <strong>unknown</strong> proteins from the reference
+         table below — two are similar in size and one is different. Separate them into
+         pure fractions using G-50 gel filtration and DEAE ion exchange. Run gels on your
+         fractions as you go: a <strong>mixed</strong> tube shows more than one band, a
+         <strong>pure</strong> tube shows a single band. When a tube holds one protein,
+         identify it. The true identities are revealed only after you submit.</p>
+    </div>
+
+    <details id="refDetails">
+      <summary>Reference: protein properties</summary>
+      <div style="overflow-x:auto">
+        <table class="reftable">
+          <caption>The mixture contains three of these nine proteins.</caption>
+          <thead>
+            <tr><th scope="col">Protein</th><th scope="col">Mol. wt. (Da)</th><th scope="col">pI</th>
+                <th scope="col">Subunits</th><th scope="col">Visual / spectral</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">Lysozyme</th><td>14,300</td><td>12</td><td>1</td><td>Clear</td></tr>
+            <tr><th scope="row">BSA</th><td>69,000</td><td>4.7</td><td>1</td><td>Clear</td></tr>
+            <tr><th scope="row">Myoglobin</th><td>17,000</td><td>7.8</td><td>1</td><td>Brown</td></tr>
+            <tr><th scope="row">Cytochrome c</th><td>12,700</td><td>10</td><td>1</td><td>Red; A₄₁₀ &gt; A₂₈₀</td></tr>
+            <tr><th scope="row">Catalase</th><td>140,000</td><td>5.6</td><td>4</td><td>Green/brown; A₄₁₀ = A₂₈₀</td></tr>
+            <tr><th scope="row">Ferritin</th><td>600,000</td><td>4.8</td><td>24</td><td>Orange/red; A₄₁₀ &lt; A₂₈₀</td></tr>
+            <tr><th scope="row">α-Lactalbumin</th><td>14,000</td><td>4.8</td><td>1</td><td>Clear</td></tr>
+            <tr><th scope="row">RNase</th><td>13,700</td><td>9.5</td><td>1</td><td>Clear</td></tr>
+            <tr><th scope="row">Haemoglobin</th><td>65,000</td><td>6.9</td><td>4</td><td>Red/brown; A₄₁₀ &gt; A₂₈₀</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    <details id="helpDetails">
+      <summary>How the techniques behave</summary>
+      <div class="helpbody">
+        <ul>
+          <li><strong>G-50 gel filtration</strong> separates by size: proteins above ~30 kDa run
+              fast (void), smaller ones are retarded. It cannot separate two proteins of the same size.</li>
+          <li><strong>DEAE (pH 7.5)</strong> is an anion exchanger: it binds proteins that are
+              negatively charged at pH 7.5 (pI &lt; 7.5); positive/neutral proteins flow through.
+              Bound proteins are recovered with a high-salt wash.</li>
+          <li><strong>SDS-PAGE</strong> shows subunit mass — one band per polypeptide, so the number of
+              bands tells you whether a tube is pure. <strong>Native gel (pH 8.8)</strong> shows charge,
+              and <strong>colour / UV-Vis</strong> distinguish the haem/iron proteins.</li>
+        </ul>
+      </div>
+    </details>
+
+    <div class="status" id="status" aria-live="polite"></div>
+
+    <div class="panel">
+      <h2>Latest result</h2>
+      <div class="readout-box" aria-live="polite">
+        <div id="feedback" class="fb">Pick a tube below, run a gel to see what is in it, and use
+          G-50 or DEAE to separate the mixtures. Start with the whole mixture in tube F1.</div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div>
+        <div class="panel" id="fracPanel">
+          <h2>Your tubes</h2>
+          <div id="fractions"></div>
+        </div>
+      </div>
+      <div>
+        <div class="panel">
+          <h2>Your experiment</h2>
+          <div id="tree" role="img" aria-label="Purification tree showing each tube and the technique used to produce it. Tube contents are hidden until you run a gel."></div>
+          <div class="text-alt"><div id="stateAlt"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="vh" aria-live="polite" id="statusVH"></div>
+
+<script>
+/* ===========================================================================
+   Protein purification LAB — interleaved version.
+   Tubes are opaque: run a gel to discover what's inside. Separation and
+   characterisation happen together, per tube. Techniques: G-50 gel filtration
+   and DEAE ion exchange (pH 7.5, step). Identities revealed only on submit.
+   Mixture composition is fixed in code (never stated to the student).
+   =========================================================================== */
+const PROT = {
+ Lys:  {name:'Lysozyme',      mw:14300, pI:12,  sub:1,  colour:'clear',       soret:'none'},
+ BSA:  {name:'BSA',           mw:69000, pI:4.7, sub:1,  colour:'clear',       soret:'none'},
+ Myo:  {name:'Myoglobin',     mw:17000, pI:7.8, sub:1,  colour:'brown',       soret:'weak'},
+ CytC: {name:'Cytochrome c',  mw:12700, pI:10,  sub:1,  colour:'red',         soret:'gt'},
+ Cat:  {name:'Catalase',      mw:140000,pI:5.6, sub:4,  colour:'green/brown', soret:'eq'},
+ Fer:  {name:'Ferritin',      mw:600000,pI:4.8, sub:24, colour:'orange/red',  soret:'lt'},
+ aLact:{name:'α-Lactalbumin', mw:14000, pI:4.8, sub:1,  colour:'clear',       soret:'none'},
+ RNase:{name:'RNase',         mw:13700, pI:9.5, sub:1,  colour:'clear',       soret:'none'},
+ Hb:   {name:'Haemoglobin',   mw:65000, pI:6.9, sub:4,  colour:'red/brown',   soret:'gt'}
+};
+const ALL9 = Object.keys(PROT);
+const LARGE = ['BSA','Cat','Fer','Hb'];
+const OTHERSMALL = ['Lys','Myo','CytC','RNase'];          // small proteins other than α-Lact
+const big   = p => PROT[p].mw>=30000;
+const binds = p => PROT[p].pI < 7.5;                       // DEAE at pH 7.5
+const nm    = p => PROT[p].name;
+const subMW = p => PROT[p].mw/PROT[p].sub;
+const kDa   = x => Math.round(x/1000);
+const rand  = n => Math.floor(Math.random()*n);
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=rand(i+1);[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+/* fixed composition: one large + α-Lact + one other small (never revealed in text) */
+function genMixture(){ return shuffle([ LARGE[rand(LARGE.length)], 'aLact', OTHERSMALL[rand(OTHERSMALL.length)] ]); }
+
+/* separation rules (binary) */
+function splitBins(contents, tech){
+  if(tech==='g50') return {property:'G-50 gel filtration', bins:[
+    {tag:'fast (void)', key:'g50f', contents:contents.filter(big)},
+    {tag:'retarded',    key:'g50r', contents:contents.filter(p=>!big(p))}]};
+  return {property:'DEAE ion exchange (pH 7.5)', bins:[
+    {tag:'bound (salt-eluted)', key:'deaeb', contents:contents.filter(binds)},
+    {tag:'flow-through',        key:'deaef', contents:contents.filter(p=>!binds(p))}]};
+}
+/* clues from separation = process only (student looks meaning up in the table) */
+function binPhrase(key){
+  return {g50f:'Ran fast (void) on G-50 gel filtration',
+          g50r:'Retarded on G-50 gel filtration',
+          deaeb:'Bound to DEAE at pH 7.5, then eluted with salt',
+          deaef:'Flowed through DEAE at pH 7.5'}[key];
+}
+function hintFor(contents, triedTech){
+  const other = triedTech==='g50' ? 'deae' : 'g50';
+  if(splitBins(contents,other).bins.filter(b=>b.contents.length).length>=2)
+    return 'Try '+(other==='g50'?'G-50 gel filtration (separates by size)':'DEAE ion exchange (separates by charge)')+'.';
+  return 'This tube may already hold a single protein — run SDS-PAGE to check (one band means it is pure).';
+}
+
+/* ===========================================================================
+   STATE
+   =========================================================================== */
+let state;
+function reset(){
+  state = {nodes:[], fcount:0, mixture:genMixture(), sepSteps:0, submitted:false};
+  newNode(state.mixture, []);
+  render();
+  setFeedback('Pick a tube below, run a gel to see what is in it, and use G-50 or DEAE to '
+    + 'separate the mixtures. Start with the whole mixture in tube F1.', null);
+}
+function newNode(contents, history){
+  state.fcount++;
+  const node = {id:state.fcount, name:'F'+state.fcount, contents:[...contents],
+                processed:false, property:'', split:null, children:[], history:[...history],
+                ran:new Set(), tech:'g50', assigned:'', solved:null, idFb:''};
+  state.nodes.push(node); return node;
+}
+const byId = id => state.nodes.find(n=>n.id===id);
+const leaves = () => state.nodes.filter(n=>!n.processed);
+
+/* ===========================================================================
+   ACTIONS
+   =========================================================================== */
+function doApply(nodeId){
+  const n = byId(nodeId); if(!n || n.processed) return;
+  const r = splitBins(n.contents, n.tech);
+  const nonEmpty = r.bins.filter(b=>b.contents.length>0);
+  if(nonEmpty.length<2){
+    const where = nonEmpty[0].key;
+    const why = {g50f:'all of it ran fast (void)', g50r:'all of it was retarded',
+                 deaeb:'all of it bound to the column', deaef:'all of it flowed through'}[where];
+    setFeedback('<span class="mark">→ No separation:</span> on '+r.property+', '+why+' — one fraction, '
+      + 'so nothing was separated. '+hintFor(n.contents, n.tech), 'warn');
+    return;
+  }
+  state.sepSteps++;
+  n.processed = true; n.property = r.property; n.split = nonEmpty;
+  const names = [];
+  nonEmpty.forEach(b=>{ const c = newNode(b.contents, [...n.history, binPhrase(b.key)]); n.children.push(c.id); names.push(c.name+' ('+b.tag+')'); });
+  setFeedback('<span class="mark">✓ Step '+state.sepSteps+'.</span> '+r.property+' split '+n.name+' into '
+    + names.join(' and ')+'. Run a gel on each new tube to see what you have.', 'good');
+  document.getElementById('statusVH').textContent = n.name+' separated into '+names.join(' and ')+'.';
+  render();
+}
+function runChar(nodeId, kind){ if(state.submitted) return; byId(nodeId).ran.add(kind); render(); }
+function setTech(nodeId, tech){ byId(nodeId).tech = tech; }
+function setAssign(nodeId, val){ if(!state.submitted){ byId(nodeId).assigned = val; render(); } }
+
+/* ===========================================================================
+   CHARACTERISATION RESULTS  (work for mixed tubes too)
+   =========================================================================== */
+const posSDS = mw => { const lo=Math.log10(10000), hi=Math.log10(80000);
+  const v=Math.log10(Math.min(80000,Math.max(10000,mw))); return Math.round((hi-v)/(hi-lo)*88+6); };
+const posNat = pI => { const off=Math.min(40,Math.abs(pI-8.8)*12); return pI<8.8 ? Math.round(50+off) : Math.round(50-off); };
+const COLHEX = {brown:'#6b4a2b', red:'#b3202a', 'green/brown':'#5f6b30', 'orange/red':'#c2541a', 'red/brown':'#7b2d1e'};
+
+function gelSDS(contents){
+  const marks=[75,50,37,25,20,15,10];
+  const ticks=marks.map(k=>'<div class="tick" style="top:'+posSDS(k*1000)+'%">'+k+'</div>').join('');
+  // position bands, then nudge apart any that would overlap (e.g. the ~14 kDa cluster)
+  const items=contents.map(p=>({p:posSDS(subMW(p)), lab:'~'+kDa(subMW(p))+' kDa'})).sort((a,b)=>a.p-b.p);
+  const minGap=11;
+  for(let i=1;i<items.length;i++) if(items[i].p-items[i-1].p<minGap) items[i].p=items[i-1].p+minGap;
+  if(items.length){ const over=items[items.length-1].p-94; if(over>0) items.forEach(it=>it.p-=over);
+                    const under=6-items[0].p; if(under>0) items.forEach(it=>it.p+=under); }
+  const bands=items.map(it=>'<div class="band" style="top:'+it.p+'%"></div><div class="blabel" style="top:'+it.p+'%">'+it.lab+'</div>').join('');
+  const n=contents.length;
+  const alt='SDS-PAGE: '+n+' band'+(n>1?'s':'')+' at approximately '+contents.map(p=>kDa(subMW(p))+' kilodaltons').join(', ')
+    +(n>1?'. More than one band means the tube is still a mixture.':'. A single band.');
+  const note='<p class="charnote">'+n+' band'+(n>1?'s':'')+' (~'+contents.map(p=>kDa(subMW(p))+' kDa').join(', ')+'). '
+    +(n>1?'More than one band — this tube is still a mixture.':'A single band — this tube is one protein.')+'</p>';
+  return '<div class="resultblock"><h4>SDS-PAGE</h4><div class="gel" role="img" aria-label="'+alt+'">'
+    + '<div class="cap">kDa</div>'+ticks+'<div class="lane">'+bands+'</div></div>'+note+'</div>';
+}
+function gelNative(contents){
+  // samples load at the origin (mid-gel); negative proteins run down to the anode, positive up to the cathode.
+  const items=contents.map(p=>({anode:PROT[p].pI<8.8, p:posNat(PROT[p].pI), dir:PROT[p].pI<8.8?'anode (+)':'cathode (−)'}));
+  // keep bands clear of the origin and of each other, without crossing sides
+  let floor=57; items.filter(i=>i.anode).sort((a,b)=>a.p-b.p).forEach(it=>{ if(it.p<floor) it.p=floor; floor=it.p+11; if(it.p>94) it.p=94; });
+  let ceil=43;  items.filter(i=>!i.anode).sort((a,b)=>b.p-a.p).forEach(it=>{ if(it.p>ceil) it.p=ceil; ceil=it.p-11; if(it.p<6) it.p=6; });
+  const bands=items.map(it=>'<div class="band" style="top:'+it.p+'%"></div><div class="blabel" style="top:'+it.p+'%">'+it.dir+'</div>').join('');
+  const wells='<div class="origin"></div>'
+    + '<div class="wellslot" style="left:10%"></div><div class="wellslot" style="left:calc(50% - 8px)"></div><div class="wellslot" style="right:10%"></div>'
+    + '<div class="originlab">origin (wells)</div>';
+  const alt='Native gel at pH 8.8. Samples are loaded at the origin line down the middle of the gel. '
+    + contents.map(p=>'one band migrating '+(PROT[p].pI<8.8?'down towards the anode':'up towards the cathode')).join('; ')+'.';
+  const note='<p class="charnote">The origin (wells) runs down the middle. '
+    + contents.map(p=>'one band to the '+(PROT[p].pI<8.8?'anode (+ end)':'cathode (− end)')).join('; ')+'.</p>';
+  return '<div class="resultblock"><h4>Native gel (pH 8.8)</h4><div class="gel" role="img" aria-label="'+alt+'">'
+    + '<div class="pole" style="top:4px">cathode (−)</div><div class="pole" style="bottom:4px">anode (+)</div>'
+    + '<div class="lane">'+wells+bands+'</div></div>'+note+'</div>';
+}
+function blockColour(contents){
+  const cols=[...new Set(contents.map(p=>PROT[p].colour))];
+  const sw=cols.map(c=> c==='clear'
+      ? '<span class="swatch clear" title="colourless"></span>'
+      : '<span class="swatch" style="background:'+COLHEX[c]+'"></span>').join('');
+  const words=cols.map(c=>c==='clear'?'colourless':c).join(' + ');
+  return '<div class="resultblock"><h4>Colour</h4><div class="swatchrow">'+sw+'<span class="charnote" style="margin:0">'+words+'</span></div></div>';
+}
+function blockUV(contents){
+  const rel={none:'no absorbance at 410 nm (no haem)', gt:'A₄₁₀ &gt; A₂₈₀', eq:'A₄₁₀ ≈ A₂₈₀',
+             lt:'A₄₁₀ &lt; A₂₈₀', weak:'a small 410 nm peak (haem present)'};
+  const classes=[...new Set(contents.map(p=>PROT[p].soret))];
+  let text;
+  if(classes.length===1) text = rel[classes[0]];
+  else text = classes.map(c=>rel[c]).join('; ')+' (signal from more than one species)';
+  return '<div class="resultblock"><h4>UV-Vis</h4><p class="charnote" style="margin:0">'+text+'</p></div>';
+}
+function resultsHTML(n){
+  let h='';
+  if(n.ran.has('sds'))    h+=gelSDS(n.contents);
+  if(n.ran.has('native')) h+=gelNative(n.contents);
+  if(n.ran.has('colour')) h+=blockColour(n.contents);
+  if(n.ran.has('uvvis'))  h+=blockUV(n.contents);
+  return h ? '<div class="results">'+h+'</div>' : '';
+}
+
+/* ===========================================================================
+   IDENTIFICATION FEEDBACK  (revealed on submit)
+   =========================================================================== */
+function discriminator(t, g){
+  if(PROT[t].colour!==PROT[g].colour)
+    return 'they differ in colour — '+nm(t)+' is '+(PROT[t].colour==='clear'?'colourless':PROT[t].colour)
+         +', while '+nm(g)+' is '+(PROT[g].colour==='clear'?'colourless':PROT[g].colour)+'.';
+  if(PROT[t].soret!==PROT[g].soret)
+    return 'they differ spectrally — check the A₄₁₀/A₂₈₀ column for '+nm(t)+' versus '+nm(g)+'.';
+  if(big(t)!==big(g))
+    return 'they differ in size — '+nm(t)+' is '+PROT[t].mw.toLocaleString()+' Da ('+(big(t)?'fast on G-50':'retarded')
+         +'), '+nm(g)+' is '+PROT[g].mw.toLocaleString()+' Da.';
+  if(PROT[t].sub!==PROT[g].sub)
+    return 'they differ in subunit structure — '+nm(t)+' has '+PROT[t].sub+' subunit'+(PROT[t].sub>1?'s':'')
+         +' (SDS band ~'+kDa(subMW(t))+' kDa) versus '+PROT[g].sub+' for '+nm(g)+'.';
+  if((PROT[t].pI<7.5)!==(PROT[g].pI<7.5))
+    return 'they differ in charge — pI '+PROT[t].pI+' versus '+PROT[g].pI+', so one binds DEAE at pH 7.5 and the other flows through.';
+  return 'they are similar, but differ in pI ('+PROT[t].pI+' versus '+PROT[g].pI+') — compare how far each runs on the native gel.';
+}
+function evalLeaf(n){
+  if(n.contents.length>1){
+    return {ok:false, fb:'<span class="mark">✗ Not pure.</span> '+n.name+' still contained '
+      + n.contents.map(nm).join(' + ')+' — its SDS-PAGE shows '+n.contents.length+' bands. Separate it before identifying.'};
+  }
+  const t=n.contents[0], a=n.assigned;
+  if(a===t){
+    let why;
+    if(PROT[t].colour!=='clear' || PROT[t].soret!=='none')
+      why='Its colour ('+(PROT[t].colour==='clear'?'colourless':PROT[t].colour)+') and spectrum place it, together with its size.';
+    else if(PROT[t].sub>1)
+      why='Its SDS band (~'+kDa(subMW(t))+' kDa) is well below its '+PROT[t].mw.toLocaleString()+' Da native mass — '+PROT[t].sub+' subunits — which pins it down.';
+    else
+      why='It is '+(big(t)?'a large protein (fast on G-50)':'a small protein (retarded)')+' with pI '+PROT[t].pI
+         +' ('+(PROT[t].pI<7.5?'binds DEAE':'does not bind DEAE')+') — a unique combination among the clear proteins.';
+    return {ok:true, fb:'<span class="mark">✓ Correct — '+n.name+' is '+nm(t)+'.</span> '+why};
+  }
+  return {ok:false, fb:'<span class="mark">✗ Not quite — '+n.name+' is actually '+nm(t)+', not '+nm(a)+'.</span> Look again: '+discriminator(t,a)};
+}
+function doSubmit(){
+  const ls = leaves();
+  if(!ls.every(n=>n.assigned)) return;
+  ls.forEach(n=>{ const r=evalLeaf(n); n.solved=r.ok; n.idFb=r.fb; });
+  state.submitted = true;
+  const pureLeaves = ls.filter(n=>n.contents.length===1);
+  const allDone = ls.length===3 && pureLeaves.length===3 && ls.every(n=>n.solved);
+  let summary;
+  if(allDone){
+    summary='<span class="mark">✓ All three isolated and identified.</span> You purified the mixture in '
+      + state.sepSteps+' separation step'+(state.sepSteps===1?'':'s')+'. Select <strong>Start over</strong> for a new random mixture.';
+  } else {
+    const correct = ls.filter(n=>n.solved).length;
+    summary='<span class="mark">→ '+correct+' of '+ls.length+' tube'+(ls.length===1?'':'s')+' correct.</span> '
+      + 'See each tube for details — any tube that still holds more than one protein needs separating first.';
+  }
+  setFeedback(summary, allDone?'good':'warn');
+  document.getElementById('statusVH').textContent='Identifications submitted. Feedback shown for each tube.';
+  render();
+}
+
+/* ===========================================================================
+   RENDER
+   =========================================================================== */
+function setFeedback(html,type){ const fb=document.getElementById('feedback'); fb.className='fb'+(type?' '+type:''); fb.innerHTML=html; }
+
+function render(){
+  renderStatus(); renderFractions(); renderTree(); renderStateAlt();
+}
+function renderStatus(){
+  const ls=leaves(), pure=ls.filter(n=>n.contents.length===1).length;
+  const el=document.getElementById('status');
+  if(state.submitted){ el.textContent='Submitted. Start over for a new mixture.'; return; }
+  el.innerHTML='<strong>Goal:</strong> get each of the three proteins into its own tube (a single SDS-PAGE band), '
+    + 'identify it, then submit. &nbsp;Tubes: '+ls.length+' &middot; single-band tubes so far: '+pure;
+}
+function renderFractions(){
+  const ls=leaves();
+  const cards = ls.map(n=>{
+    const dis = state.submitted?' disabled':'';
+    const lineage = n.history.length
+      ? '<ul class="hist">'+n.history.map(h=>'<li>'+h+'</li>').join('')+'</ul>'
+      : '<ul class="hist"><li>Starting mixture — three unknown proteins</li></ul>';
+    const opts = ['<option value="">— choose —</option>']
+      .concat(ALL9.map(p=>'<option value="'+p+'"'+(n.assigned===p?' selected':'')+'>'+nm(p)+'</option>')).join('');
+    const techR = [['g50','G-50 (size)'],['deae','DEAE pH 7.5 (charge)']].map(([v,l])=>{
+      const c=n.tech===v; return '<label class="radio'+(c?' checked':'')+'" style="padding:8px 10px">'
+        +'<input type="radio" name="tech'+n.id+'" value="'+v+'"'+(c?' checked':'')+(state.submitted?' disabled':'')+'>'
+        +'<span class="rlabel">'+l+'</span></label>';}).join('');
+    const sep = state.submitted ? '' :
+      '<div class="control subfooter"><fieldset><legend style="font-size:.9rem">Purify further</legend>'
+      +'<div class="radios" style="margin-bottom:10px">'+techR+'</div>'
+      +'<button type="button" class="btn btn-primary" data-apply="'+n.id+'" style="min-height:44px">Apply to '+n.name+'</button></fieldset></div>';
+    const verdict = (state.submitted && n.idFb) ? '<div class="fb '+(n.solved?'good':'warn')+'" style="margin-top:10px">'+n.idFb+'</div>' : '';
+    const head = state.submitted
+      ? n.name+' — '+(n.contents.length>1 ? 'mixture: '+n.contents.map(nm).join(' + ') : nm(n.contents[0]))
+      : n.name;
+    return '<div class="idcard'+(state.submitted&&n.solved?' solved':'')+'"><h3>Tube '+head+'</h3>'
+      + '<p class="note" style="margin:0">Clues from separation:</p>'+lineage
+      + '<div class="charbtns">'
+      +   '<button type="button" class="charbtn" data-kind="sds" data-node="'+n.id+'"'+dis+'>Run SDS-PAGE</button>'
+      +   '<button type="button" class="charbtn" data-kind="native" data-node="'+n.id+'"'+dis+'>Native gel</button>'
+      +   '<button type="button" class="charbtn" data-kind="colour" data-node="'+n.id+'"'+dis+'>Colour</button>'
+      +   '<button type="button" class="charbtn" data-kind="uvvis" data-node="'+n.id+'"'+dis+'>UV-Vis</button>'
+      + '</div>'+resultsHTML(n)
+      + sep
+      + '<div class="assignrow"><label for="assign'+n.id+'">Identify '+n.name+' as:</label>'
+      +   '<select id="assign'+n.id+'" data-assign="'+n.id+'"'+dis+'>'+opts+'</select></div>'+verdict
+      + '</div>';
+  }).join('');
+
+  let footer;
+  if(state.submitted){
+    footer='<div class="btnrow"><button type="button" class="btn btn-ghost" id="resetBtn">Start over</button></div>';
+  } else {
+    const allAssigned = ls.length>0 && ls.every(n=>n.assigned);
+    footer='<p class="note">When every tube is a single protein and you have identified them all, submit. '
+      + 'A tube that still holds a mixture will be flagged.</p>'
+      + '<div class="btnrow"><button type="button" class="btn btn-primary" id="submitBtn"'+(allAssigned?'':' disabled')+'>Submit identifications</button>'
+      + '<button type="button" class="btn btn-ghost" id="resetBtn">Start over</button></div>';
+  }
+  document.getElementById('fractions').innerHTML = cards + footer;
+}
+function renderTree(){ document.getElementById('tree').innerHTML='<ul class="tree">'+nodeHTML(state.nodes[0])+'</ul>'; }
+function nodeHTML(node){
+  const leaf=!node.processed, pure=leaf&&node.contents.length===1;
+  const reveal = state.submitted && leaf
+      ? ' <span class="rsub" style="font-weight:400">('+(node.contents.length>1?'mixture: '+node.contents.map(nm).join(' + '):nm(node.contents[0]))+')</span>'
+      : '';
+  const badge = !leaf ? '<span class="badge">separated</span>' : '<span class="badge mixed">tube</span>';
+  const desc = node.processed
+    ? '<p class="step-desc">'+node.property+' → '+node.split.map(b=>b.tag).join('  ·  ')+'</p>' : '';
+  const kids = node.children.length ? '<ul>'+node.children.map(id=>nodeHTML(byId(id))).join('')+'</ul>' : '';
+  return '<li><div class="node'+(node.processed?' processed':'')+(pure&&state.submitted?' pure':'')+'">'
+    + '<span class="fname">'+node.name+'</span>'+badge+reveal+desc+'</div>'+kids+'</li>';
+}
+function renderStateAlt(){
+  const ls=leaves();
+  document.getElementById('stateAlt').innerHTML =
+    'Current tubes: '+ls.map(n=>n.name).join(', ')+'. Run a gel on a tube to see what it contains; '
+    + 'tube contents are not shown until you do.';
+}
+
+/* ===========================================================================
+   EVENTS  (delegated)
+   =========================================================================== */
+document.getElementById('fracPanel').addEventListener('click', e=>{
+  const t=e.target;
+  if(t.dataset.kind)       runChar(parseInt(t.dataset.node,10), t.dataset.kind);
+  else if(t.dataset.apply) doApply(parseInt(t.dataset.apply,10));
+  else if(t.id==='submitBtn') doSubmit();
+  else if(t.id==='resetBtn')  reset();
+});
+document.getElementById('fracPanel').addEventListener('change', e=>{
+  const t=e.target;
+  if(t.name && t.name.indexOf('tech')===0) setTech(parseInt(t.name.slice(4),10), t.value);
+  else if(t.dataset.assign) setAssign(parseInt(t.dataset.assign,10), t.value);
+});
+
+reset();
+
+</script>
+</body>
+</html>
