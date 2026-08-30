@@ -292,7 +292,6 @@ const kDa   = x => Math.round(x/1000);
 const rand  = n => Math.floor(Math.random()*n);
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=rand(i+1);[a[i],a[j]]=[a[j],a[i]];}return a;}
 
-/* fixed composition: one large + α-Lact + one other small (never revealed in text) */
 function genMixture(){ return shuffle([ LARGE[rand(LARGE.length)], 'aLact', OTHERSMALL[rand(OTHERSMALL.length)] ]); }
 
 /* separation rules (binary) */
