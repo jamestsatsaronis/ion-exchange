@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<!--
+  Ion Exchange Chromatography — bind / wash / elute (accessible teaching sim)
+  Built on the "Plain Service" house style. Tokens, primitives, layout and
+  accessibility scaffolding unchanged. Single self-contained file.
+-->
+<html lang="en-AU">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ion exchange chromatography — bind, wash, elute</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ---------- House style tokens (do not edit) ---------- */
+  :root{
+    --bg:#ffffff; --surface:#ffffff; --surface-2:#f3f4f6; --border:#9aa1ab;
+    --ink:#16191f; --ink-muted:#4b515a; --accent:#1d4ed8; --accent-ink:#ffffff;
+    --focus:#1d4ed8; --radius:4px;
+    --font:'Public Sans',system-ui,-apple-system,sans-serif;
+    --series1:#1d4ed8; --series2:#a8420a; --series3:#6b7280;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--bg);color:var(--ink);font-family:var(--font);
+       font-size:17px;line-height:1.6;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1040px;margin:0 auto;padding:24px 20px 56px;}
+
+  .sim{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px;}
+  .sim-head h1{font-size:1.6rem;line-height:1.2;margin:0 0 6px;font-weight:700;}
+  .sim-head p{margin:0 0 24px;color:var(--ink-muted);max-width:65ch;}
+
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:28px;}
+  @media (max-width:760px){.grid{grid-template-columns:1fr;}}
+
+  .panel{background:var(--surface-2);border:1px solid var(--border);
+         border-radius:var(--radius);padding:18px;margin-bottom:24px;}
+  .panel:last-child{margin-bottom:0;}
+  .panel h2{font-size:1rem;margin:0 0 14px;font-weight:700;}
+
+  /* control row */
+  .control{margin-bottom:22px;}
+  .control:last-child{margin-bottom:0;}
+  .control>label{display:block;font-weight:600;margin-bottom:8px;font-size:.95rem;}
+  .readout{font-variant-numeric:tabular-nums;color:var(--ink-muted);font-weight:400;}
+
+  /* slider primitive — keyboard + buttons satisfy WCAG 2.5.7 */
+  .slider-row{display:flex;align-items:center;gap:10px;}
+  .stepbtn{appearance:none;border:2px solid var(--border);background:var(--surface);
+    color:var(--ink);font:inherit;font-size:1.2rem;font-weight:700;line-height:1;
+    width:44px;height:44px;border-radius:var(--radius);cursor:pointer;flex:none;}
+  .stepbtn:hover{border-color:var(--accent);}
+  input[type=range]{flex:1;height:44px;accent-color:var(--accent);cursor:pointer;min-width:0;}
+
+  /* segmented radio primitive */
+  fieldset{border:0;margin:0;padding:0;}
+  legend{font-weight:600;margin-bottom:8px;font-size:.95rem;padding:0;}
+  .radios{display:flex;flex-direction:column;gap:8px;}
+  .radio{display:flex;align-items:center;gap:10px;border:2px solid var(--border);
+    background:var(--surface);border-radius:var(--radius);padding:10px 12px;
+    cursor:pointer;min-height:44px;}
+  .radio:hover{border-color:var(--accent);}
+  .radio input{width:20px;height:20px;accent-color:var(--accent);flex:none;}
+  .radio.checked{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--surface));}
+  .radio small{display:block;color:var(--ink-muted);font-weight:400;}
+
+  /* buttons */
+  .btnrow{display:flex;gap:10px;flex-wrap:wrap;}
+  .btn{appearance:none;font:inherit;font-weight:600;min-height:44px;padding:0 18px;
+    border-radius:var(--radius);cursor:pointer;border:2px solid var(--accent);}
+  .btn-primary{background:var(--accent);color:var(--accent-ink);}
+  .btn-ghost{background:transparent;color:var(--ink);border-color:var(--border);}
+  .btn:hover{filter:brightness(.96);}
+
+  /* visible focus everywhere — WCAG 2.4.7 / 2.4.11 */
+  button:focus-visible,input:focus-visible,.radio:focus-within{
+    outline:3px solid var(--focus);outline-offset:2px;}
+
+  canvas{width:100%;height:auto;display:block;border-radius:var(--radius);
+    background:var(--surface);border:1px solid var(--border);}
+  .legend{display:flex;gap:14px 16px;flex-wrap:wrap;margin-top:12px;font-size:.86rem;color:var(--ink-muted);}
+  .legend span{display:inline-flex;align-items:center;gap:7px;}
+  .legend .lg-head{width:100%;font-weight:700;color:var(--ink);margin-top:6px;gap:0;}
+  .legend svg{flex:none;color:var(--ink-muted);}
+  .swatch{width:15px;height:15px;flex:none;border:1px solid var(--border);}
+
+  /* data table = the visible readout AND the text alternative for the canvas */
+  .datatable{width:100%;border-collapse:collapse;margin-top:12px;font-variant-numeric:tabular-nums;}
+  .datatable caption{text-align:left;font-weight:700;color:var(--ink);margin-bottom:6px;font-size:.95rem;}
+  .datatable th,.datatable td{border:1px solid var(--border);padding:6px 10px;text-align:left;font-size:.9rem;}
+  .datatable th{font-weight:700;}
+
+  .readout-box{padding:14px 16px;border-radius:var(--radius);
+    background:color-mix(in srgb,var(--accent) 10%,var(--surface));
+    border:1px solid color-mix(in srgb,var(--accent) 35%,var(--border));font-size:.95rem;}
+  .readout-box p{margin:0;}
+
+  .note{margin-top:10px;font-size:.82rem;color:var(--ink-muted);}
+  .vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="sim">
+    <div class="sim-head">
+      <h1>Ion exchange chromatography: bind, wash, elute</h1>
+      <p>A mixture of five proteins is loaded onto a charged resin. Set the buffer
+         <strong>pH</strong> — which fixes each protein's net charge — and the
+         <strong>exchanger type</strong> to decide which proteins stick. Then apply the
+         <strong>high-salt wash</strong> to dislodge everything that bound, all at once.</p>
+    </div>
+
+    <div class="grid">
+      <!-- LEFT: controls -->
+      <div>
+        <div class="panel">
+          <h2>Controls</h2>
+
+          <!-- pH slider -->
+          <div class="control">
+            <label for="ph">Buffer pH
+              <span class="readout">(pH <span id="phVal">7.0</span>)</span>
+            </label>
+            <div class="slider-row">
+              <button type="button" class="stepbtn" id="phDown" aria-label="Decrease pH">&minus;</button>
+              <input type="range" id="ph" min="2" max="12" step="0.5" value="7" aria-describedby="phHint">
+              <button type="button" class="stepbtn" id="phUp" aria-label="Increase pH">+</button>
+            </div>
+            <p class="vh" id="phHint">Use the plus and minus buttons or the arrow keys to change pH without dragging. A protein is positively charged below its pI and negatively charged above it.</p>
+          </div>
+
+          <!-- Exchanger type -->
+          <div class="control">
+            <fieldset>
+              <legend>Exchanger type</legend>
+              <div class="radios" id="exGroup">
+                <label class="radio checked"><input type="radio" name="ex" value="cex" checked>
+                  <span>Cation exchanger <small>Resin is negative (&minus;). Binds positive proteins (pH below pI).</small></span></label>
+                <label class="radio"><input type="radio" name="ex" value="aex">
+                  <span>Anion exchanger <small>Resin is positive (+). Binds negative proteins (pH above pI).</small></span></label>
+              </div>
+            </fieldset>
+          </div>
+
+          <!-- Wash step -->
+          <div class="control">
+            <fieldset>
+              <legend>Wash step</legend>
+              <div class="radios" id="phaseGroup">
+                <label class="radio checked"><input type="radio" name="phase" value="load" checked>
+                  <span>Loading buffer <small>Low salt. Proteins bind or flow through according to charge.</small></span></label>
+                <label class="radio"><input type="radio" name="phase" value="wash">
+                  <span>High-salt wash (500&nbsp;mM NaCl) <small>Salt ions displace every bound protein at once.</small></span></label>
+              </div>
+            </fieldset>
+          </div>
+
+          <div class="btnrow">
+            <button type="button" class="btn btn-primary" id="playBtn" aria-pressed="true">Pause animation</button>
+            <button type="button" class="btn btn-ghost" id="resetBtn">Reset</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: column view + results -->
+      <div>
+        <div class="panel">
+          <h2>Column view</h2>
+          <canvas id="view" width="480" height="380" role="img" aria-label="Loading…"></canvas>
+          <div class="legend" id="legend" aria-hidden="true">
+            <span class="lg-head">Proteins — identify by shape and letter</span>
+            <!-- shape swatches injected here -->
+            <span class="lg-head">Colour shows net charge (same as the +/&minus; badge)</span>
+            <span><span class="swatch" style="background:var(--series1)"></span>Net positive (+)</span>
+            <span><span class="swatch" style="background:var(--series2)"></span>Net negative (&minus;)</span>
+            <span><span class="swatch" style="background:var(--series3)"></span>Near neutral (0)</span>
+          </div>
+          <p class="note">Resin beads show their fixed charge in the centre. Each protein
+             shows its current net-charge sign in a badge. Bound proteins sit on beads;
+             unbound and eluted proteins flow down and out.</p>
+        </div>
+
+        <div class="panel">
+          <div class="readout-box" aria-live="polite" id="live">
+            <p id="liveSummary"></p>
+          </div>
+          <table class="datatable" id="statusTable">
+            <caption>Each protein's net charge and fate at the current settings</caption>
+            <thead><tr><th>Protein</th><th>pI</th><th>Net charge</th><th>Fate</th></tr></thead>
+            <tbody id="statusBody"></tbody>
+          </table>
+          <p class="note" id="motionNote"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===========================================================================
+   MODEL — bind / wash / elute ion exchange
+   Net charge:  Q(pH,pI) = Qmax * tanh((pI - pH)/w)
+     pH < pI -> Q positive ;  pH = pI -> 0 ;  pH > pI -> Q negative
+   Binding:  binds only if the sign is OPPOSITE the resin and |Q| is above a
+             small threshold.  cation resin (negative) binds Q>0 ;
+             anion resin (positive) binds Q<0.
+   Wash:  a single 500 mM salt step. It displaces EVERY bound protein at once
+          (no gradient, so bound proteins co-elute). Values are illustrative.
+   =========================================================================== */
+const Qmax=10, W=2.0, BIND_MIN=1.5, WASH_SALT=500;
+const PROTEINS=[
+  {id:'A', pI:4.5, shape:'circle'},
+  {id:'B', pI:5.5, shape:'square'},
+  {id:'C', pI:6.5, shape:'triangle'},
+  {id:'D', pI:8.0, shape:'diamond'},
+  {id:'E', pI:9.5, shape:'pentagon'}
+];
+let pH=7.0, exchanger='cex', phase='load';
+
+function charge(pI){ return Qmax*Math.tanh((pI-pH)/W); }
+function state(p){
+  const Q=charge(p.pI);
+  const wantsSign=(exchanger==='cex')?(Q>0):(Q<0);
+  const binds=wantsSign && Math.abs(Q)>=BIND_MIN;
+  let status = !binds ? 'flow' : (phase==='wash' ? 'eluted' : 'bound');
+  return {Q, binds, status};
+}
+
+/* ---- colours read once ---- */
+const cs=getComputedStyle(document.documentElement);
+const COL={
+  s1:cs.getPropertyValue('--series1').trim(), s2:cs.getPropertyValue('--series2').trim(),
+  s3:cs.getPropertyValue('--series3').trim(), ink:cs.getPropertyValue('--ink').trim(),
+  inkMuted:cs.getPropertyValue('--ink-muted').trim(), border:cs.getPropertyValue('--border').trim(),
+  surf:cs.getPropertyValue('--surface').trim(), panel:cs.getPropertyValue('--surface-2').trim(),
+  accent:cs.getPropertyValue('--accent').trim()
+};
+function chargeColour(Q){ if(Math.abs(Q)<BIND_MIN) return COL.s3; return Q>0?COL.s1:COL.s2; }
+function signChar(Q){ return Q>0.2?'+':(Q<-0.2?'−':'0'); }
+
+/* ===========================================================================
+   CONTROLS
+   =========================================================================== */
+const phS=document.getElementById('ph'), phVal=document.getElementById('phVal');
+function refresh(){
+  pH=+phS.value; phVal.textContent=pH.toFixed(1);
+  updateReadouts(); seed(); drawColumn();
+}
+phS.addEventListener('input',refresh);
+document.getElementById('phUp').addEventListener('click',()=>{phS.value=Math.min(12,+phS.value+0.5);refresh();});
+document.getElementById('phDown').addEventListener('click',()=>{phS.value=Math.max(2,+phS.value-0.5);refresh();});
+
+document.getElementById('exGroup').addEventListener('change',e=>{
+  exchanger=e.target.value;
+  document.querySelectorAll('#exGroup .radio').forEach(l=>l.classList.toggle('checked',l.querySelector('input').checked));
+  refresh();
+});
+document.getElementById('phaseGroup').addEventListener('change',e=>{
+  phase=e.target.value;
+  document.querySelectorAll('#phaseGroup .radio').forEach(l=>l.classList.toggle('checked',l.querySelector('input').checked));
+  refresh();
+});
+document.getElementById('resetBtn').addEventListener('click',()=>{
+  phS.value=7; exchanger='cex'; phase='load';
+  document.querySelector('#exGroup input[value=cex]').checked=true;
+  document.querySelector('#phaseGroup input[value=load]').checked=true;
+  document.querySelectorAll('#exGroup .radio,#phaseGroup .radio').forEach(l=>l.classList.toggle('checked',l.querySelector('input').checked));
+  refresh(); if(!running||reduceMotion) frame();
+});
+
+/* ===========================================================================
+   READOUTS — live summary, data table, and dynamic canvas aria-label.
+   The table is the visible data AND the text alternative for the animation.
+   =========================================================================== */
+function updateReadouts(){
+  const bound=[], flow=[], eluted=[];
+  let rows='';
+  PROTEINS.forEach(p=>{
+    const st=state(p);
+    (st.status==='bound'?bound:st.status==='eluted'?eluted:flow).push(p.id);
+    const mag=Math.abs(st.Q)<0.05?'0.0':Math.abs(st.Q).toFixed(1);
+    const chg=signChar(st.Q)+(signChar(st.Q)==='0'?'':' '+mag);
+    const fate = st.status==='bound' ? 'Bound to resin'
+               : st.status==='eluted' ? 'Eluted by wash'
+               : 'Flow-through';
+    rows+=`<tr><td>${p.id} (pI ${p.pI.toFixed(1)})</td><td>${p.pI.toFixed(1)}</td><td>${chg}</td><td>${fate}</td></tr>`;
+  });
+  document.getElementById('statusBody').innerHTML=rows;
+
+  const resin = exchanger==='cex' ? 'negative (cation exchanger)' : 'positive (anion exchanger)';
+  let msg = `<strong>pH ${pH.toFixed(1)}</strong>, resin ${resin}. `;
+  if(phase==='load'){
+    msg += bound.length ? `Bound to the resin: <strong>${bound.join(', ')}</strong>. ` : `Nothing binds at this pH. `;
+    msg += flow.length  ? `Flowing through: <strong>${flow.join(', ')}</strong>. ` : '';
+    msg += bound.length ? `Apply the high-salt wash to elute them.` : `Try adjusting the pH or exchanger so a protein takes the opposite charge to the resin.`;
+  } else {
+    msg += `High-salt wash (500 mM NaCl) applied. `;
+    msg += eluted.length ? `All previously bound proteins — <strong>${eluted.join(', ')}</strong> — are dislodged together and elute. ` : `Nothing was bound, so the wash elutes nothing. `;
+    msg += flow.length ? `<strong>${flow.join(', ')}</strong> were never retained.` : '';
+  }
+  document.getElementById('liveSummary').innerHTML=msg;
+
+  document.getElementById('view').setAttribute('aria-label',
+    `Column view. Resin is ${resin}. `+
+    (phase==='wash'?'High-salt wash applied. ':'Loading buffer. ')+
+    (bound.length?`Bound: ${bound.join(', ')}. `:'')+
+    (eluted.length?`Eluted by the wash: ${eluted.join(', ')}. `:'')+
+    (flow.length?`Flowing through: ${flow.join(', ')}.`:'')+
+    ' Full details are in the table below.');
+}
+
+/* ===========================================================================
+   LEGEND (identity by shape) — built once
+   =========================================================================== */
+function shapeSVG(shape){
+  const b='<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">';
+  const f='fill="currentColor"';
+  if(shape==='circle')   return b+`<circle cx="8" cy="8" r="7" ${f}/></svg>`;
+  if(shape==='square')   return b+`<rect x="1.5" y="1.5" width="13" height="13" ${f}/></svg>`;
+  if(shape==='triangle') return b+`<polygon points="8,1 15,15 1,15" ${f}/></svg>`;
+  if(shape==='diamond')  return b+`<polygon points="8,1 15,8 8,15 1,8" ${f}/></svg>`;
+  return b+`<polygon points="8,1 15.2,6.5 12.4,15 3.6,15 0.8,6.5" ${f}/></svg>`; // pentagon
+}
+(function buildLegend(){
+  const frag=PROTEINS.map(p=>`<span>${shapeSVG(p.shape)} ${p.id} · pI ${p.pI.toFixed(1)}</span>`).join('');
+  const head=document.querySelector('#legend .lg-head');
+  head.insertAdjacentHTML('afterend',frag);
+})();
+
+/* ===========================================================================
+   COLUMN VISUALISATION — identity by SHAPE + letter; charge by big +/- badge
+   and (redundantly) by fill colour. Bound proteins rest on beads; unbound and
+   eluted proteins flow down and leave the column.
+   =========================================================================== */
+const cv=document.getElementById('view'), ctx=cv.getContext('2d');
+let running=true;
+const reduceMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const playBtn=document.getElementById('playBtn');
+const motionNote=document.getElementById('motionNote');
+
+const COLX0=95, COLX1=385, COLY0=52, COLY1=332;
+const BEADS=[]; // 4 cols x 3 rows
+(function(){const xs=[150,220,290,360], ys=[104,192,280]; for(const y of ys) for(const x of xs) BEADS.push({x,y});})();
+
+let particles=[], ions=[];
+function seed(){
+  particles=[];
+  const homes=[0,2,4,6,8,10,1,3,5,7]; // spread across the 12 beads (up to 10 bound)
+  let k=0;
+  PROTEINS.forEach(p=>{
+    for(let i=0;i<2;i++){
+      const b=BEADS[homes[k%homes.length]]; k++;
+      particles.push({p, bead:b,
+        x:COLX0+24+Math.random()*(COLX1-COLX0-48),
+        y:COLY0-28-Math.random()*90,
+        lane:COLX0+34+Math.random()*(COLX1-COLX0-68),
+        speed:0.7+Math.random()*0.5});
+    }
+  });
+  const n = phase==='wash' ? 30 : 0;   // counter-ions only during the salt wash
+  ions=[];
+  for(let i=0;i<n;i++) ions.push({
+    x:COLX0+14+Math.random()*(COLX1-COLX0-28),
+    y:COLY0+Math.random()*(COLY1-COLY0),
+    speed:0.5+Math.random()*0.8});
+}
+
+function drawColumn(){
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.fillStyle=COL.surf; ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.lineJoin='round'; ctx.textAlign='center';
+
+  // phase caption + inlet / outlet labels
+  ctx.textBaseline='alphabetic';
+  ctx.font='700 13px Public Sans, sans-serif';
+  ctx.fillStyle = phase==='wash' ? COL.accent : COL.inkMuted;
+  ctx.fillText(phase==='wash' ? 'High-salt wash — 500 mM NaCl' : 'Loading buffer — low salt',
+               (COLX0+COLX1)/2, 20);
+  ctx.font='600 12px Public Sans, sans-serif'; ctx.fillStyle=COL.inkMuted;
+  ctx.fillText('sample loads at the top', (COLX0+COLX1)/2, 40);
+  ctx.fillText('flow-through / eluate collected below', (COLX0+COLX1)/2, 366);
+
+  // column body
+  ctx.fillStyle=COL.panel; roundRect(COLX0,COLY0,COLX1-COLX0,COLY1-COLY0,10); ctx.fill();
+  ctx.strokeStyle=COL.border; ctx.lineWidth=2; roundRect(COLX0,COLY0,COLX1-COLX0,COLY1-COLY0,10); ctx.stroke();
+
+  // beads with a large, bold fixed-charge sign
+  const resinSign = exchanger==='cex' ? '−' : '+';
+  BEADS.forEach(b=>{
+    ctx.beginPath(); ctx.arc(b.x,b.y,20,0,7);
+    ctx.fillStyle=COL.surf; ctx.fill();
+    ctx.lineWidth=3; ctx.strokeStyle=COL.inkMuted; ctx.stroke();
+    ctx.fillStyle=COL.ink; ctx.font='700 24px Public Sans, sans-serif';
+    ctx.textBaseline='middle'; ctx.fillText(resinSign,b.x,b.y+1);
+  });
+  ctx.textBaseline='alphabetic';
+
+  // salt counter-ions (wash only), signed
+  const ionSign = exchanger==='cex' ? '+' : '−';   // Na+ competes on CEX, Cl− on AEX
+  ions.forEach(io=>{
+    ctx.beginPath(); ctx.arc(io.x,io.y,6,0,7);
+    ctx.fillStyle=COL.surf; ctx.fill();
+    ctx.lineWidth=1.6; ctx.strokeStyle=COL.inkMuted; ctx.stroke();
+    ctx.fillStyle=COL.inkMuted; ctx.font='700 11px Public Sans, sans-serif';
+    ctx.textBaseline='middle'; ctx.fillText(ionSign,io.x,io.y+0.5);
+  });
+  ctx.textBaseline='alphabetic';
+
+  // proteins
+  particles.forEach(pt=>{
+    const st=state(pt.p);
+    drawProtein(pt.x,pt.y,pt.p.shape,chargeColour(st.Q),pt.p.id,signChar(st.Q));
+  });
+}
+
+function drawProtein(x,y,shape,fill,letter,sign){
+  const r=14;
+  ctx.fillStyle=fill; ctx.strokeStyle=COL.surf; ctx.lineWidth=1.8;
+  ctx.beginPath();
+  if(shape==='circle'){ ctx.arc(x,y,r,0,7); }
+  else if(shape==='square'){ ctx.rect(x-r,y-r,2*r,2*r); }
+  else if(shape==='triangle'){ ctx.moveTo(x,y-r-1); ctx.lineTo(x-r-1,y+r-1); ctx.lineTo(x+r+1,y+r-1); ctx.closePath(); }
+  else if(shape==='diamond'){ ctx.moveTo(x,y-r-1); ctx.lineTo(x+r+1,y); ctx.lineTo(x,y+r+1); ctx.lineTo(x-r-1,y); ctx.closePath(); }
+  else { // pentagon
+    for(let i=0;i<5;i++){const a=-Math.PI/2+i*2*Math.PI/5; const px=x+Math.cos(a)*(r+1), py=y+Math.sin(a)*(r+1);
+      i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);} ctx.closePath();
+  }
+  ctx.fill(); ctx.stroke();
+  // letter
+  ctx.fillStyle='#ffffff'; ctx.font='700 13px Public Sans, sans-serif';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(letter,x,y+(shape==='triangle'?4:(shape==='pentagon'?2:1)));
+  // large charge badge, top-right
+  const bx=x+r-2, by=y-r+2;
+  ctx.beginPath(); ctx.arc(bx,by,9,0,7);
+  ctx.fillStyle=COL.surf; ctx.fill(); ctx.lineWidth=1.8; ctx.strokeStyle=COL.ink; ctx.stroke();
+  ctx.fillStyle=COL.ink; ctx.font='700 14px Public Sans, sans-serif';
+  ctx.fillText(sign,bx,by+0.5);
+  ctx.textBaseline='alphabetic';
+}
+
+function roundRect(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+
+/* ---- animation: bound proteins rest on beads; others flow down ---- */
+function step(){
+  particles.forEach(pt=>{
+    const st=state(pt.p);
+    if(st.status==='bound'){
+      pt.x += (pt.bead.x - pt.x)*0.12;
+      pt.y += (pt.bead.y - pt.y)*0.12;
+    } else {
+      pt.y += pt.speed;
+      pt.x += (pt.lane - pt.x)*0.02;
+      if(pt.y > COLY1+40){ pt.y=COLY0-28-Math.random()*70; pt.lane=COLX0+34+Math.random()*(COLX1-COLX0-68); }
+    }
+  });
+  ions.forEach(io=>{ io.y+=io.speed; if(io.y>COLY1+6) io.y=COLY0+Math.random()*20; });
+}
+function frame(){
+  if(running && !reduceMotion) step();
+  drawColumn();
+  if(running && !reduceMotion) requestAnimationFrame(frame);
+}
+function setPlay(on){
+  running=on;
+  playBtn.textContent = on?'Pause animation':'Play animation';
+  playBtn.setAttribute('aria-pressed',String(on));
+  if(on && !reduceMotion) requestAnimationFrame(frame); else drawColumn();
+}
+playBtn.addEventListener('click',()=>setPlay(!running));
+if(reduceMotion){
+  running=false; playBtn.textContent='Play animation'; playBtn.setAttribute('aria-pressed','false');
+  motionNote.textContent='Animation is paused because your system requests reduced motion. Press Play to start it. Charges, binding and the table all still update live.';
+}
+
+/* init */
+refresh();
+frame();
+</script>
+</body>
+</html>
